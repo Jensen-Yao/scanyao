@@ -1,0 +1,17 @@
+{
+  "name": "扫耀 ScanYao",
+  "short_name": "扫耀",
+  "description": "本地优先的文档扫描、透视校正与 PDF 导出工具。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f2f3f5",
+  "theme_color": "#f2f3f5",
+  "icons": [
+    {
+      "src": "./brand/scanyao-icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

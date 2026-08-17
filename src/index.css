@@ -1,0 +1,16 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  color: #1d1d1f;
+  background: #f2f3f5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  line-height: 1.45;
+  font-weight: 400;
+}
+* { box-sizing: border-box; }
+html, body, #app { width: 100%; min-width: 0; height: 100%; margin: 0; }
+body { overflow: hidden; }
+button, input { font: inherit; }
+button { border: 0; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .48; }
+button:focus-visible, input:focus-visible { outline: 2px solid #0a84ff; outline-offset: 2px; }

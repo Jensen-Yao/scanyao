@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">扫耀</string>
+    <string name="title_activity_main">扫耀</string>
+    <string name="package_name">com.jensenyao.scanyao</string>
+    <string name="custom_url_scheme">com.jensenyao.scanyao</string>
+</resources>
