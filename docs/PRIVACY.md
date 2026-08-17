@@ -8,7 +8,9 @@ ScanYao is local-first.
   sheet only after the user chooses an export action.
 - The browser and Windows versions create local object URLs and download the
   generated file directly.
-- Closing or refreshing the current session clears the in-memory page list.
+- To restore unfinished work, source images and edit settings are stored in the
+  current app/browser profile's IndexedDB database. They never leave the
+  device. Choosing "清空文档" removes the active saved document.
 
 The GitHub Pages build is a static copy of the same client application. Loading
 the page downloads HTML, CSS, JavaScript, and brand assets from GitHub Pages;

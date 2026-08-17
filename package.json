@@ -1,7 +1,7 @@
 {
   "name": "scanyao",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Small, local-first document scanner for Windows and Android.",
   "type": "module",
   "scripts": {

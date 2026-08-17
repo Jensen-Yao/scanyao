@@ -14,4 +14,14 @@ describe('PDF export', () => {
     expect(text).toContain('xref')
     expect(text.endsWith('%%EOF')).toBe(true)
   })
+
+  it('supports letter paper and margins', () => {
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
+    const text = new TextDecoder('latin1').decode(createPdf(
+      [{ bytes: jpeg, width: 1200, height: 1800 }],
+      { pageSize: 'letter', margin: 24 },
+    ))
+    expect(text).toContain('/MediaBox [0 0 612 792]')
+    expect(text).toContain('496.000 0 0 744.000 58.000 24.000 cm')
+  })
 })

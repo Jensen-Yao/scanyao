@@ -13,6 +13,8 @@ dist-ssr
 *.local
 artifacts/
 assets/
+output/
+.playwright-cli/
 windows/**/bin/
 windows/**/obj/
 android/.gradle/

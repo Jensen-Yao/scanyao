@@ -4,6 +4,11 @@ export interface PdfJpegPage {
   height: number
 }
 
+export interface PdfOptions {
+  pageSize?: 'auto' | 'a4' | 'letter'
+  margin?: number
+}
+
 const encoder = new TextEncoder()
 
 function ascii(value: string) {
@@ -21,7 +26,7 @@ function concat(chunks: Uint8Array[]) {
   return output
 }
 
-export function createPdf(pages: PdfJpegPage[]) {
+export function createPdf(pages: PdfJpegPage[], options: PdfOptions = {}) {
   if (pages.length === 0) {
     throw new Error('PDF 至少需要一页。')
   }
@@ -36,9 +41,22 @@ export function createPdf(pages: PdfJpegPage[]) {
     const imageObject = pageObject + 1
     const contentObject = pageObject + 2
     const portrait = page.height >= page.width
-    const pageWidth = portrait ? 595 : 842
-    const pageHeight = portrait ? 842 : 595
-    const scale = Math.min(pageWidth / page.width, pageHeight / page.height)
+    const size = options.pageSize ?? 'a4'
+    let pageWidth: number
+    let pageHeight: number
+    if (size === 'auto') {
+      const ratio = page.width / page.height
+      pageWidth = portrait ? 842 * ratio : 842
+      pageHeight = portrait ? 842 : 842 / ratio
+    } else {
+      const base = size === 'letter' ? [612, 792] : [595, 842]
+      pageWidth = portrait ? base[0] : base[1]
+      pageHeight = portrait ? base[1] : base[0]
+    }
+    const margin = Math.max(0, Math.min(options.margin ?? 0, Math.min(pageWidth, pageHeight) / 4))
+    const availableWidth = pageWidth - margin * 2
+    const availableHeight = pageHeight - margin * 2
+    const scale = Math.min(availableWidth / page.width, availableHeight / page.height)
     const drawWidth = page.width * scale
     const drawHeight = page.height * scale
     const offsetX = (pageWidth - drawWidth) / 2

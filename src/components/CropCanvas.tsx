@@ -7,6 +7,8 @@ interface CropCanvasProps {
   imageUrl: string
   corners: CornerSet
   onChange: (corners: CornerSet) => void
+  onEditStart?: () => void
+  onEditEnd?: () => void
 }
 
 interface Layout {
@@ -22,7 +24,7 @@ function distance(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
-export function CropCanvas({ imageUrl, corners, onChange }: CropCanvasProps) {
+export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd }: CropCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const activeHandle = useRef<number | null>(null)
@@ -139,6 +141,7 @@ export function CropCanvas({ imageUrl, corners, onChange }: CropCanvasProps) {
     if (!nearest) return
     activeHandle.current = nearest.index
     canvasRef.current.setPointerCapture(event.pointerId)
+    onEditStart?.()
     navigator.vibrate?.(8)
   }
 
@@ -153,8 +156,10 @@ export function CropCanvas({ imageUrl, corners, onChange }: CropCanvasProps) {
   }
 
   const onPointerUp = (event: PointerEvent) => {
+    const wasEditing = activeHandle.current !== null
     activeHandle.current = null
     if (canvasRef.current?.hasPointerCapture(event.pointerId)) canvasRef.current.releasePointerCapture(event.pointerId)
+    if (wasEditing) onEditEnd?.()
   }
 
   return (
