@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpToLine, Columns3, Combine, Grid2X2, Images, Move, Plus, Rows3, Trash2, X } from 'lucide-preact'
+import { ArrowDownToLine, ArrowUpToLine, Columns3, Combine, Grid2X2, Images, Maximize2, Move, Plus, Rows3, Trash2, X, ZoomIn, ZoomOut } from 'lucide-preact'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import {
   calculateCompositionLayout,
@@ -41,6 +41,10 @@ interface SourceMergeSheetProps {
 }
 
 type MergeTemplate = CompositionMode | 'collage'
+
+const MIN_STAGE_ZOOM = 1
+const MAX_STAGE_ZOOM = 2.5
+const STAGE_ZOOM_STEP = 0.25
 
 const TEMPLATES: { id: MergeTemplate; label: string; icon: typeof Rows3 }[] = [
   { id: 'vertical', label: '纵向长图', icon: Rows3 },
@@ -104,6 +108,7 @@ export function SourceMergeSheet({ initialItems, replacePageCount, busy, onClose
   const [keepOriginals, setKeepOriginals] = useState(true)
   const [loading, setLoading] = useState(false)
   const [stageSize, setStageSize] = useState({ width: 320, height: 320 })
+  const [stageZoom, setStageZoom] = useState(1)
   const fileInput = useRef<HTMLInputElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const stageShell = useRef<HTMLDivElement>(null)
@@ -190,6 +195,28 @@ export function SourceMergeSheet({ initialItems, replacePageCount, busy, onClose
     setTemplate(nextTemplate)
     setAspectRatio(next.aspectRatio)
     setPlacements(next.placements)
+    setStageZoom(1)
+    stageShell.current?.scrollTo({ left: 0, top: 0 })
+  }
+
+  const changeStageZoom = (nextZoom: number) => {
+    const container = stageShell.current
+    const currentWidth = Math.max(1, stageSize.width * stageZoom)
+    const currentHeight = Math.max(1, stageSize.height * stageZoom)
+    const centerX = container ? (container.scrollLeft + container.clientWidth / 2) / currentWidth : 0.5
+    const centerY = container ? (container.scrollTop + container.clientHeight / 2) / currentHeight : 0.5
+    const zoom = Math.max(MIN_STAGE_ZOOM, Math.min(MAX_STAGE_ZOOM, nextZoom))
+    setStageZoom(zoom)
+    window.requestAnimationFrame(() => {
+      if (!container) return
+      container.scrollLeft = Math.max(0, centerX * stageSize.width * zoom - container.clientWidth / 2)
+      container.scrollTop = Math.max(0, centerY * stageSize.height * zoom - container.clientHeight / 2)
+    })
+  }
+
+  const fitStage = () => {
+    setStageZoom(1)
+    window.requestAnimationFrame(() => stageShell.current?.scrollTo({ left: 0, top: 0, behavior: 'smooth' }))
   }
 
   const addFiles = async (files: FileList | File[]) => {
@@ -238,6 +265,7 @@ export function SourceMergeSheet({ initialItems, replacePageCount, busy, onClose
   const onPointerDown = (event: PointerEvent, sourceId: string, index: number) => {
     const placement = placements[index]
     if (!placement) return
+    if (event.cancelable) event.preventDefault()
     event.stopPropagation()
     setSelectedId(sourceId)
     ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
@@ -254,6 +282,7 @@ export function SourceMergeSheet({ initialItems, replacePageCount, busy, onClose
     const currentDrag = drag.current
     const bounds = stage.current?.getBoundingClientRect()
     if (!currentDrag || !bounds || currentDrag.pointerId !== event.pointerId) return
+    if (event.cancelable) event.preventDefault()
     const index = sources.findIndex((source) => source.id === currentDrag.id)
     if (index < 0) return
     const dx = (event.clientX - currentDrag.startX) / bounds.width
@@ -286,28 +315,31 @@ export function SourceMergeSheet({ initialItems, replacePageCount, busy, onClose
         <div class="merge-studio-body">
           <div class="merge-stage-column">
             <div ref={stageShell} class="merge-stage-shell">
-              <div ref={stage} class={sources.length === 0 ? 'merge-stage empty' : 'merge-stage'} style={{ aspectRatio, width: `${stageSize.width}px`, height: `${stageSize.height}px` }} onClick={() => setSelectedId(null)}>
-                {sources.map((source, index) => {
-                  const placement = placements[index]
-                  if (!placement) return null
-                  return (
-                    <button
-                      type="button"
-                      key={source.id}
-                      class={selectedId === source.id ? 'merge-canvas-item active' : 'merge-canvas-item'}
-                      style={{ left: `${placement.x * 100}%`, top: `${placement.y * 100}%`, width: `${placement.width * 100}%`, height: `${placement.height * 100}%` }}
-                      onPointerDown={(event) => onPointerDown(event, source.id, index)}
-                      onPointerMove={onPointerMove}
-                      onPointerUp={onPointerUp}
-                      onPointerCancel={onPointerUp}
-                      aria-label={`拖动 ${source.name}`}
-                    ><img src={source.url} alt="" draggable={false} /></button>
-                  )
-                })}
-                {sources.length === 0 && <button type="button" class="merge-empty-action" onClick={() => fileInput.current?.click()}><Images size={28} /><strong>添加要拼合的原图</strong><span>至少选择两张，可继续追加</span></button>}
+              <div class="merge-stage-scroll-content" style={{ width: `max(100%, ${stageSize.width * stageZoom + 20}px)`, height: `max(100%, ${stageSize.height * stageZoom + 20}px)` }}>
+                <div ref={stage} class={sources.length === 0 ? 'merge-stage empty' : 'merge-stage'} style={{ aspectRatio, width: `${stageSize.width * stageZoom}px`, height: `${stageSize.height * stageZoom}px` }} onClick={() => setSelectedId(null)}>
+                  {sources.map((source, index) => {
+                    const placement = placements[index]
+                    if (!placement) return null
+                    return (
+                      <button
+                        type="button"
+                        key={source.id}
+                        class={selectedId === source.id ? 'merge-canvas-item active' : 'merge-canvas-item'}
+                        style={{ left: `${placement.x * 100}%`, top: `${placement.y * 100}%`, width: `${placement.width * 100}%`, height: `${placement.height * 100}%` }}
+                        onPointerDown={(event) => onPointerDown(event, source.id, index)}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={onPointerUp}
+                        onPointerCancel={onPointerUp}
+                        onLostPointerCapture={onPointerUp}
+                        aria-label={`拖动 ${source.name}`}
+                      ><img src={source.url} alt="" draggable={false} /></button>
+                    )
+                  })}
+                  {sources.length === 0 && <button type="button" class="merge-empty-action" onClick={() => fileInput.current?.click()}><Images size={28} /><strong>添加要拼合的原图</strong><span>至少选择两张，可继续追加</span></button>}
+                </div>
               </div>
             </div>
-            <div class="merge-stage-status"><span><Move size={14} />直接拖动图片调整位置</span><span>{sources.length} 张</span></div>
+            <div class="merge-stage-status"><span class="merge-drag-status"><Move size={14} />移动图片</span><div class="merge-zoom-controls" role="group" aria-label="画布缩放"><button type="button" onClick={() => changeStageZoom(stageZoom - STAGE_ZOOM_STEP)} disabled={stageZoom <= MIN_STAGE_ZOOM} aria-label="缩小画布" title="缩小画布"><ZoomOut size={14} /></button><output>{Math.round(stageZoom * 100)}%</output><button type="button" onClick={() => changeStageZoom(stageZoom + STAGE_ZOOM_STEP)} disabled={stageZoom >= MAX_STAGE_ZOOM} aria-label="放大画布" title="放大画布"><ZoomIn size={14} /></button><button type="button" onClick={fitStage} disabled={stageZoom === 1} aria-label="适合窗口" title="适合窗口"><Maximize2 size={14} /></button></div><span class="merge-source-count">{sources.length} 张</span></div>
           </div>
 
           <aside class="merge-controls">

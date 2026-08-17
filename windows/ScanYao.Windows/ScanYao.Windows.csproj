@@ -7,8 +7,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ScanYao</AssemblyName>
     <RootNamespace>ScanYao.Windows</RootNamespace>
-    <Version>0.2.0</Version>
-    <FileVersion>0.2.0.0</FileVersion>
+    <Version>0.2.1</Version>
+    <FileVersion>0.2.1.0</FileVersion>
     <ApplicationIcon>..\..\public\brand\scanyao.ico</ApplicationIcon>
     <SelfContained>false</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>

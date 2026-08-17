@@ -248,8 +248,9 @@ body { background: var(--bg-app); color: var(--text); }
 .merge-heading-actions { display: flex; align-items: center; gap: 7px; }
 .merge-studio-body { display: grid; grid-template-columns: minmax(0, 1fr) 306px; flex: 1; min-height: 0; }
 .merge-stage-column { display: flex; min-width: 0; min-height: 0; flex-direction: column; background: var(--bg-muted-soft); }
-.merge-stage-shell { display: grid; flex: 1; min-height: 0; place-items: center; padding: 18px; overflow: hidden; }
-.merge-stage { position: relative; max-width: 100%; max-height: 100%; overflow: hidden; background: #fff; box-shadow: 0 10px 30px rgba(29,31,35,.18); touch-action: none; }
+.merge-stage-shell { display: block; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--border-strong) transparent; scrollbar-width: thin; touch-action: pan-x pan-y; -webkit-overflow-scrolling: touch; }
+.merge-stage-scroll-content { display: grid; min-width: 100%; min-height: 100%; padding: 10px; place-items: center; }
+.merge-stage { position: relative; flex: 0 0 auto; overflow: hidden; background: #fff; box-shadow: 0 10px 30px rgba(29,31,35,.18); touch-action: pan-x pan-y; }
 .merge-stage.empty { display: grid; place-items: center; border: 1px dashed var(--border-strong); box-shadow: none; }
 .merge-canvas-item { position: absolute; display: block; overflow: hidden; padding: 0; background: #f5f5f5; border: 2px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,.1); cursor: grab; touch-action: none; user-select: none; }
 .merge-canvas-item:active { cursor: grabbing; }
@@ -259,11 +260,16 @@ body { background: var(--bg-app); color: var(--text); }
 .merge-empty-action svg { color: var(--primary); }
 .merge-empty-action strong { color: var(--text); font-size: 13px; }
 .merge-empty-action span { color: var(--text-faint); font-size: 10px; }
-.merge-stage-status { display: flex; flex: 0 0 34px; align-items: center; justify-content: space-between; padding: 0 14px; color: var(--text-faint); border-top: 1px solid var(--border); font-size: 10px; }
+.merge-stage-status { display: grid; grid-template-columns: minmax(72px, 1fr) auto minmax(32px, 1fr); flex: 0 0 38px; align-items: center; gap: 8px; padding: 0 10px 0 14px; color: var(--text-faint); border-top: 1px solid var(--border); font-size: 10px; }
 .merge-stage-status span { display: inline-flex; align-items: center; gap: 5px; }
+.merge-source-count { justify-self: end; }
+.merge-zoom-controls { display: flex; align-items: center; gap: 1px; padding: 2px; background: var(--bg-surface-strong); border: 1px solid var(--border); border-radius: 7px; }
+.merge-zoom-controls button { display: grid; width: 27px; height: 25px; padding: 0; place-items: center; color: var(--text-soft); background: transparent; border-radius: 5px; }
+.merge-zoom-controls button:hover:not(:disabled) { color: var(--text); background: var(--bg-muted-soft); }
+.merge-zoom-controls output { min-width: 34px; color: var(--text-soft); font-size: 9px; text-align: center; }
 .merge-controls { display: flex; min-height: 0; flex-direction: column; gap: 12px; padding: 15px; overflow: hidden; border-left: 1px solid var(--border); }
-.merge-controls-scroll { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 12px; overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; scroll-padding-bottom: 16px; -webkit-overflow-scrolling: touch; }
-.merge-control-section { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.merge-controls-scroll { display: flex; flex: 1 1 0; min-height: 0; max-height: 100%; flex-direction: column; gap: 12px; overflow-x: hidden; overflow-y: scroll; overscroll-behavior: contain; padding: 1px 4px 24px 0; scroll-padding-bottom: 24px; scrollbar-color: var(--border-strong) transparent; scrollbar-width: thin; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.merge-control-section { display: grid; flex: 0 0 auto; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .merge-template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .merge-template-grid button { display: flex; min-height: 52px; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: var(--text-soft); background: var(--bg-muted-soft); border: 1px solid transparent; border-radius: 7px; font-size: 10px; }
 .merge-template-grid button.active { color: var(--primary); background: var(--primary-soft); border-color: rgba(10,132,255,.32); }
@@ -277,7 +283,7 @@ body { background: var(--bg-app); color: var(--text); }
 .merge-layer-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 .merge-layer-actions button { display: inline-flex; min-width: 0; min-height: 32px; align-items: center; justify-content: center; gap: 4px; color: var(--text-soft); background: var(--bg-muted-soft); border-radius: 6px; font-size: 9px; }
 .merge-layer-actions button.danger { color: var(--danger); }
-.merge-keep-toggle { flex: 0 0 auto; }
+.merge-keep-toggle { flex: 0 0 auto; margin-bottom: 4px; }
 .merge-confirm { flex: 0 0 40px; width: 100%; }
 
 .page-manager { display: flex; width: min(720px, 100%); flex-direction: column; }
@@ -364,9 +370,9 @@ body { background: var(--bg-app); color: var(--text); }
   .source-merge-studio { height: 100%; max-height: 100%; padding: 0; }
   .merge-studio-heading { flex-basis: 58px; padding: 9px 10px 8px 14px; }
   .merge-studio-body { grid-template-rows: minmax(220px, 50%) minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); overflow: hidden; }
-  .merge-stage-shell { padding: 10px; }
+  .merge-stage-scroll-content { padding: 8px; }
   .merge-controls { gap: 9px; padding: 11px 13px max(14px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); border-left: 0; }
-  .merge-controls-scroll { gap: 9px; scroll-padding-bottom: 12px; }
+  .merge-controls-scroll { gap: 9px; padding-bottom: max(30px, env(safe-area-inset-bottom)); scroll-padding-bottom: max(30px, env(safe-area-inset-bottom)); }
   .merge-control-section { padding-bottom: 9px; }
   .merge-template-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .merge-template-grid button { min-height: 46px; padding: 3px 1px; }
@@ -385,6 +391,9 @@ body { background: var(--bg-app); color: var(--text); }
   .filter-option { font-size: 9px; }
   .merge-heading-actions .quiet-button { width: 34px; padding: 0; gap: 0; font-size: 0; }
   .merge-template-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .merge-stage-status { grid-template-columns: 28px 1fr 28px; padding-inline: 8px; }
+  .merge-drag-status { justify-content: center; font-size: 0; }
+  .merge-source-count { font-size: 9px; }
   .field-grid { grid-template-columns: 1fr; }
   .sheet-command-row { align-items: stretch; flex-direction: column; }
 }

@@ -717,7 +717,7 @@ export function App() {
         <div class="sidebar-spacer" />
         <div class="local-note"><span class="status-dot" />本地处理<br /><small>{saveLabel}</small></div>
         <button class="theme-toggle" type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label="切换深浅色主题" title="切换深浅色主题">{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}<span>{theme === 'light' ? '深色外观' : '浅色外观'}</span></button>
-        <div class="sidebar-footer">v0.2 · 本地优先</div>
+        <div class="sidebar-footer">v0.2.1 · 本地优先</div>
       </aside>
 
       <main class="main-content">

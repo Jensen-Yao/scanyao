@@ -3,6 +3,11 @@
 ScanYao stays local-first and small. Large capabilities should be optional
 rather than silently increasing every installation.
 
+## v0.2.1
+
+- Fully scrollable source-composition controls on compact phone screens
+- Zoomable and pannable composition canvas while preserving direct layer dragging
+
 ## v0.2.0
 
 - Persistent local document sessions and undo/redo
