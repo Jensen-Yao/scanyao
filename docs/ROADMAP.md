@@ -3,6 +3,10 @@
 ScanYao stays local-first and small. Large capabilities should be optional
 rather than silently increasing every installation.
 
+## v0.2.2
+
+- Fixed Windows WPF icon resource packaging so the desktop app starts reliably
+
 ## v0.2.1
 
 - Fully scrollable source-composition controls on compact phone screens
