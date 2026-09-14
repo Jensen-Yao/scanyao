@@ -3,6 +3,11 @@
 ScanYao stays local-first and small. Large capabilities should be optional
 rather than silently increasing every installation.
 
+## v0.3.1
+
+- Desktop canvas zooming: wheel or -/percent/+/fit controls (25–400%, remembered),
+  cursor-centered zoom in enhance mode, and drag-to-pan in both editor modes
+
 ## v0.3.0
 
 - In-app camera with live document-edge detection, multi-shot capture,

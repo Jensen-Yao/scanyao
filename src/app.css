@@ -103,9 +103,18 @@ body { background: var(--bg-app); color: var(--text); }
 .canvas-meta { max-width: 18vw; overflow: hidden; color: var(--text-faint); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .canvas-stage { position: relative; display: flex; flex: 1; min-height: 0; align-items: center; justify-content: center; padding: 14px; overflow: hidden; background: var(--canvas); }
 .crop-canvas-wrap { width: 100%; height: 100%; min-height: 220px; overflow: hidden; }
-.crop-canvas { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; }
+.crop-canvas { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; cursor: grab; }
+.crop-canvas.panning { cursor: grabbing; }
 .processed-preview { display: block; max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 10px 28px rgba(0,0,0,.32); }
 .processing-state { display: inline-flex; align-items: center; gap: 8px; color: rgba(255,255,255,.68); font-size: 13px; }
+/* 画布缩放 */
+.preview-zoom-wrap { display: grid; width: 100%; height: 100%; min-height: 0; place-items: center; overflow: hidden; }
+.preview-zoom-inner { display: grid; place-items: center; max-width: 100%; max-height: 100%; will-change: transform; }
+.stage-zoom-controls { position: absolute; bottom: 12px; left: 50%; z-index: 6; display: flex; align-items: center; gap: 1px; padding: 2px; background: color-mix(in srgb, var(--bg-surface-strong) 92%, transparent); border: 1px solid var(--border-strong); border-radius: 8px; backdrop-filter: blur(14px); transform: translateX(-50%); }
+.stage-zoom-controls button { display: grid; width: 28px; height: 26px; padding: 0; place-items: center; color: var(--text-soft); background: transparent; border-radius: 6px; }
+.stage-zoom-controls button:hover:not(:disabled) { color: var(--text); background: var(--bg-muted-soft); }
+.stage-zoom-controls button:disabled { opacity: .4; }
+.stage-zoom-controls output { min-width: 44px; color: var(--text-soft); font-size: 10px; text-align: center; }
 .busy-overlay { position: absolute; right: 14px; bottom: 14px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 10px; color: #fff; background: rgba(22,23,25,.78); border: 1px solid rgba(255,255,255,.15); border-radius: 8px; backdrop-filter: blur(12px); font-size: 12px; }
 .spinner { width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -406,6 +415,7 @@ body { background: var(--bg-app); color: var(--text); }
   .canvas-toolbar-actions .danger-icon { display: none; }
   .canvas-meta { display: none; }
   .canvas-stage { min-height: 0; padding: 8px; }
+  .stage-zoom-controls { display: none; }
   .crop-canvas-wrap { min-height: 0; }
   .canvas-footer { flex-basis: 27px; padding-inline: 9px; }
   .canvas-footer span:first-child { max-width: 65%; }

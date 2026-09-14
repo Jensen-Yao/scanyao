@@ -6,7 +6,10 @@ import { loadImage } from '../core/imageEngine'
 interface CropCanvasProps {
   imageUrl: string
   corners: CornerSet
+  zoom?: number
+  pan?: Point
   onChange: (corners: CornerSet) => void
+  onPan?: (deltaX: number, deltaY: number) => void
   onEditStart?: () => void
   onEditEnd?: () => void
 }
@@ -20,7 +23,7 @@ interface Layout {
   height: number
 }
 
-type DragTarget = { kind: 'corner'; index: number } | { kind: 'edge'; index: number } | { kind: 'move' }
+type DragTarget = { kind: 'corner'; index: number } | { kind: 'edge'; index: number } | { kind: 'move' } | { kind: 'pan' }
 
 const CORNER_GRAB_RADIUS = 34
 const EDGE_GRAB_RADIUS = 30
@@ -31,7 +34,7 @@ function distance(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
-export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd }: CropCanvasProps) {
+export function CropCanvas({ imageUrl, corners, zoom = 1, pan, onChange, onPan, onEditStart, onEditEnd }: CropCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const activeTarget = useRef<DragTarget | null>(null)
@@ -41,6 +44,8 @@ export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd
   const cornersRef = useRef(corners)
   const repaintRef = useRef<() => void>(() => {})
   cornersRef.current = corners
+  const panRef = useRef(pan ?? { x: 0, y: 0 })
+  panRef.current = pan ?? { x: 0, y: 0 }
 
   useEffect(() => {
     let disposed = false
@@ -51,12 +56,12 @@ export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd
       const canvas = canvasRef.current
       const bounds = containerRef.current.getBoundingClientRect()
       if (bounds.width < 2 || bounds.height < 2) return
-      const ratio = Math.min(bounds.width / image.naturalWidth, bounds.height / image.naturalHeight)
+      const ratio = Math.min(bounds.width / image.naturalWidth, bounds.height / image.naturalHeight) * zoom
       const imageWidth = image.naturalWidth * ratio
       const imageHeight = image.naturalHeight * ratio
       const layout: Layout = {
-        imageX: (bounds.width - imageWidth) / 2,
-        imageY: (bounds.height - imageHeight) / 2,
+        imageX: (bounds.width - imageWidth) / 2 + (panRef.current.x ?? 0),
+        imageY: (bounds.height - imageHeight) / 2 + (panRef.current.y ?? 0),
         imageWidth,
         imageHeight,
         width: bounds.width,
@@ -209,7 +214,7 @@ export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd
       disposed = true
       resizeObserver.disconnect()
     }
-  }, [imageUrl, corners])
+  }, [imageUrl, corners, zoom, pan])
 
   const toUnitPoint = (event: PointerEvent) => {
     const layout = layoutRef.current
@@ -259,11 +264,15 @@ export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd
     const rect = canvasRef.current.getBoundingClientRect()
     const screenPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top }
     const target = hitTest(screenPoint)
-    if (!target) return
-    activeTarget.current = target
+    if (!target && !onPan) return
+    activeTarget.current = target ?? { kind: 'pan' }
     lastPointer.current = screenPoint
-    loupeAnchor.current = target.kind === 'move' || event.pointerType === 'mouse' ? null : screenPoint
+    loupeAnchor.current = (target === null || target.kind === 'move' || target.kind === 'pan' || event.pointerType === 'mouse') ? null : screenPoint
     canvasRef.current.setPointerCapture(event.pointerId)
+    if (activeTarget.current.kind === 'pan') {
+      canvasRef.current.classList.add('panning')
+      return
+    }
     onEditStart?.()
     navigator.vibrate?.(8)
   }
@@ -273,8 +282,15 @@ export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd
     if (!target) return
     const rect = canvasRef.current?.getBoundingClientRect()
     const screenPoint = rect ? { x: event.clientX - rect.left, y: event.clientY - rect.top } : null
+    if (!screenPoint) return
+    if (target.kind === 'pan') {
+      const previous = lastPointer.current
+      if (previous && onPan) onPan(screenPoint.x - previous.x, screenPoint.y - previous.y)
+      lastPointer.current = screenPoint
+      return
+    }
     const point = toUnitPoint(event)
-    if (!point || !screenPoint) return
+    if (!point) return
     const previous = lastPointer.current
     let next = cornersRef.current.map((corner) => ({ ...corner })) as CornerSet
     if (target.kind === 'corner') {
@@ -297,14 +313,16 @@ export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd
 
   const onPointerUp = (event: PointerEvent) => {
     const wasEditing = activeTarget.current !== null
+    const wasPanning = activeTarget.current?.kind === 'pan'
     activeTarget.current = null
     lastPointer.current = null
+    canvasRef.current?.classList.remove('panning')
     if (loupeAnchor.current) {
       loupeAnchor.current = null
       repaintRef.current()
     }
     if (canvasRef.current?.hasPointerCapture(event.pointerId)) canvasRef.current.releasePointerCapture(event.pointerId)
-    if (wasEditing) onEditEnd?.()
+    if (wasEditing && !wasPanning) onEditEnd?.()
   }
 
   return (
@@ -316,7 +334,7 @@ export function CropCanvas({ imageUrl, corners, onChange, onEditStart, onEditEnd
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        aria-label="拖动四角或边线调整扫描范围，框内拖动可整体移动"
+        aria-label="拖动四角或边线调整扫描范围，框内拖动整体移动，空白处拖动平移视图"
       />
     </div>
   )

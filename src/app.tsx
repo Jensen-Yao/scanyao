@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import {
   Aperture, Archive, Check, ChevronDown, Combine, Copy, Download, FileImage,
   FilePlus2, FileText, FlipHorizontal2, FlipVertical2, Grid2X2, ImagePlus, Images, Layers3,
-  History, Moon, MoreHorizontal, Redo2, RotateCcw, RotateCw,
-  ScanLine, Settings2, Sparkles, Sun, Trash2, Undo2, Upload,
+  History, Maximize2, Moon, MoreHorizontal, Redo2, RotateCcw, RotateCw,
+  ScanLine, Settings2, Sparkles, Sun, Trash2, Undo2, Upload, ZoomIn, ZoomOut,
   WandSparkles,
 } from 'lucide-preact'
 import { CameraSheet } from './components/CameraSheet'
@@ -84,6 +84,18 @@ function initialPreviewRatio() {
   return Number.isFinite(saved) && saved >= 44 && saved <= 68 ? saved : 55
 }
 
+const STAGE_ZOOM_MIN = 0.25
+const STAGE_ZOOM_MAX = 4
+
+function initialStageZoom() {
+  const saved = Number(localStorage.getItem('scanyao-stage-zoom'))
+  return Number.isFinite(saved) && saved >= STAGE_ZOOM_MIN && saved <= STAGE_ZOOM_MAX ? saved : 1
+}
+
+function clampStageZoom(value: number) {
+  return Math.min(STAGE_ZOOM_MAX, Math.max(STAGE_ZOOM_MIN, value))
+}
+
 export function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme)
   const [previewRatio, setPreviewRatio] = useState(initialPreviewRatio)
@@ -102,6 +114,10 @@ export function App() {
   const [mergeSession, setMergeSession] = useState<MergeSession | null>(null)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [stageZoom, setStageZoom] = useState(initialStageZoom)
+  const [stagePan, setStagePan] = useState({ x: 0, y: 0 })
+  const previewPanDrag = useRef<{ startX: number; startY: number; baseX: number; baseY: number; moved: boolean } | null>(null)
+  const suppressPreviewClick = useRef(false)
   const [exportOptions, setExportOptions] = useState<ExportOptions>(loadExportOptions)
   const [saveState, setSaveState] = useState<SaveState>('loading')
   const [hydrated, setHydrated] = useState(false)
@@ -182,6 +198,15 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('scanyao-preview-ratio', String(previewRatio))
   }, [previewRatio])
+
+  useEffect(() => {
+    localStorage.setItem('scanyao-stage-zoom', String(stageZoom))
+  }, [stageZoom])
+
+  // 切页或切换模式时回到居中位置，缩放倍率保持用户设置
+  useEffect(() => {
+    setStagePan({ x: 0, y: 0 })
+  }, [selectedId, mode])
 
   useEffect(() => {
     localStorage.setItem('scanyao-export', JSON.stringify(exportOptions))
@@ -436,6 +461,55 @@ export function App() {
   const flipHorizontal = () => applyGeometry({ flipX: !(activePage?.flipX ?? false) }, '已切换水平翻转')
   const flipVertical = () => applyGeometry({ flipY: !(activePage?.flipY ?? false) }, '已切换垂直翻转')
 
+  const zoomStageBy = (factor: number) => setStageZoom((current) => clampStageZoom(current * factor))
+  const fitStage = () => {
+    setStageZoom(1)
+    setStagePan({ x: 0, y: 0 })
+  }
+  const onStageWheel = (event: WheelEvent) => {
+    event.preventDefault()
+    const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12
+    const next = clampStageZoom(stageZoom * factor)
+    if (next === stageZoom) return
+    if (mode !== 'crop') {
+      // 增强模式以光标为中心缩放
+      const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect()
+      const cursorX = event.clientX - bounds.left - bounds.width / 2
+      const cursorY = event.clientY - bounds.top - bounds.height / 2
+      const applied = next / stageZoom
+      setStagePan({
+        x: Math.max(-bounds.width, Math.min(bounds.width, cursorX - (cursorX - stagePan.x) * applied)),
+        y: Math.max(-bounds.height, Math.min(bounds.height, cursorY - (cursorY - stagePan.y) * applied)),
+      })
+    }
+    setStageZoom(next)
+  }
+  const onPreviewPanDown = (event: PointerEvent) => {
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+    previewPanDrag.current = { startX: event.clientX, startY: event.clientY, baseX: stagePan.x, baseY: stagePan.y, moved: false }
+  }
+  const onPreviewPanMove = (event: PointerEvent) => {
+    const drag = previewPanDrag.current
+    if (!drag) return
+    const deltaX = event.clientX - drag.startX
+    const deltaY = event.clientY - drag.startY
+    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) drag.moved = true
+    if (drag.moved) setStagePan({ x: drag.baseX + deltaX, y: drag.baseY + deltaY })
+  }
+  const onPreviewPanUp = (event: PointerEvent) => {
+    const target = event.currentTarget as HTMLElement
+    if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
+    suppressPreviewClick.current = previewPanDrag.current?.moved ?? false
+    previewPanDrag.current = null
+  }
+  const onPreviewClickCapture = (event: MouseEvent) => {
+    if (suppressPreviewClick.current) {
+      event.preventDefault()
+      event.stopPropagation()
+      suppressPreviewClick.current = false
+    }
+  }
+
   const detectCorners = async () => {
     if (!activePage) return
     setBusyLabel('正在识别边缘')
@@ -687,7 +761,7 @@ export function App() {
         <div class="sidebar-spacer" />
         <div class="local-note"><span class="status-dot" />本地处理<br /><small>{saveLabel}</small></div>
         <button class="theme-toggle" type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label="切换深浅色主题" title="切换深浅色主题">{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}<span>{theme === 'light' ? '深色外观' : '浅色外观'}</span></button>
-        <div class="sidebar-footer">v0.3.0 · 本地优先</div>
+        <div class="sidebar-footer">v0.3.1 · 本地优先</div>
       </aside>
 
       <main class="main-content">
@@ -722,17 +796,44 @@ export function App() {
                   <div class="segmented-control" role="tablist" aria-label="编辑模式"><button type="button" class={mode === 'crop' ? 'segment active' : 'segment'} onClick={() => setMode('crop')}><ScanLine size={15} />校正</button><button type="button" class={mode === 'filter' ? 'segment active' : 'segment'} onClick={() => setMode('filter')}><Sparkles size={15} />增强</button></div>
                   <div class="canvas-toolbar-actions"><span class="canvas-meta">第 {activeIndex + 1} / {pages.length} 页</span><div class="mobile-history-actions"><button class="icon-button subtle" type="button" onClick={undo} disabled={history.past.length === 0} aria-label="撤销" title="撤销"><Undo2 size={17} /></button><button class="icon-button subtle" type="button" onClick={redo} disabled={history.future.length === 0} aria-label="重做" title="重做"><Redo2 size={17} /></button></div><button class="icon-button subtle rotate-shortcut" type="button" onClick={rotate} aria-label="旋转 90 度" title="旋转 90 度"><RotateCw size={17} /></button><button class="icon-button subtle" type="button" onClick={resetPage} aria-label="重置当前页" title="重置当前页"><RotateCcw size={17} /></button><button class="icon-button subtle mobile-history-entry" type="button" onClick={() => setHistoryOpen(true)} aria-label="查看操作历史" title="查看操作历史"><History size={17} /></button><button class="icon-button subtle danger-icon" type="button" onClick={() => deletePageById(activePage.id)} aria-label="删除当前页" title="删除当前页"><Trash2 size={17} /></button></div>
                 </div>
-                <div class="canvas-stage">
+                <div class="canvas-stage" onWheel={onStageWheel}>
                   {mode === 'crop' ? (
                     <>
-                      <CropCanvas imageUrl={activePage.sourceUrl} corners={activePage.corners} onChange={(corners) => updateActive({ corners }, false)} onEditStart={beginTransaction} onEditEnd={endTransaction} />
+                      <CropCanvas
+                        imageUrl={activePage.sourceUrl}
+                        corners={activePage.corners}
+                        zoom={stageZoom}
+                        pan={stagePan}
+                        onChange={(corners) => updateActive({ corners }, false)}
+                        onPan={(deltaX, deltaY) => setStagePan((current) => ({ x: current.x + deltaX, y: current.y + deltaY }))}
+                        onEditStart={beginTransaction}
+                        onEditEnd={endTransaction}
+                      />
                       <LiveScanBadge page={activePage} onOpen={() => setPreviewOpen(true)} />
                     </>
                   ) : preview ? (
-                    <button type="button" class="processed-preview-button" onClick={() => setPreviewOpen(true)} aria-label="点击全屏查看扫描结果" title="点击全屏查看">
-                      <img class="processed-preview" src={preview.url} alt="扫描预览" />
-                    </button>
+                    <div class="preview-zoom-wrap">
+                      <div
+                        class="preview-zoom-inner"
+                        style={`transform: translate(${stagePan.x}px, ${stagePan.y}px) scale(${stageZoom})`}
+                        onPointerDown={onPreviewPanDown}
+                        onPointerMove={onPreviewPanMove}
+                        onPointerUp={onPreviewPanUp}
+                        onPointerCancel={onPreviewPanUp}
+                        onClickCapture={onPreviewClickCapture}
+                      >
+                        <button type="button" class="processed-preview-button" onClick={() => setPreviewOpen(true)} aria-label="点击全屏查看扫描结果" title="点击全屏查看">
+                          <img class="processed-preview" src={preview.url} alt="扫描预览" draggable={false} />
+                        </button>
+                      </div>
+                    </div>
                   ) : <div class="processing-state"><Sparkles size={20} />正在生成预览…</div>}
+                  <div class="stage-zoom-controls" role="group" aria-label="画布缩放">
+                    <button type="button" onClick={() => zoomStageBy(1 / 1.25)} disabled={stageZoom <= STAGE_ZOOM_MIN + 1e-9} aria-label="缩小画布" title="缩小画布"><ZoomOut size={14} /></button>
+                    <output>{Math.round(stageZoom * 100)}%</output>
+                    <button type="button" onClick={() => zoomStageBy(1.25)} disabled={stageZoom >= STAGE_ZOOM_MAX - 1e-9} aria-label="放大画布" title="放大画布"><ZoomIn size={14} /></button>
+                    <button type="button" onClick={fitStage} disabled={stageZoom === 1 && stagePan.x === 0 && stagePan.y === 0} aria-label="适合窗口" title="适合窗口"><Maximize2 size={14} /></button>
+                  </div>
                   {busy && <div class="busy-overlay"><span class="spinner" />{busyLabel}</div>}
                 </div>
                 <div class="canvas-footer"><span><Check size={14} />{saveLabel}</span><span>{preview ? `${preview.width} × ${preview.height}` : '预览等待中'}</span></div>
