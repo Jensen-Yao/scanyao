@@ -4,13 +4,18 @@ ScanYao keeps one small TypeScript application at the center and adds thin
 native shells for Windows and Android.
 
 ```text
-src/core/geometry.ts      four-point projective mapping
-src/core/imageEngine.ts   edge suggestion, warp, filters, JPEG rendering
+src/core/geometry.ts      four-point projective mapping, quad drag math
+src/core/imageEngine.ts   edge suggestion, warp, filters, decorations, JPEG rendering
 src/core/compositor.ts    template and freeform pre/post-processing composition
 src/core/pdf.ts           dependency-free multi-page PDF writer
 src/core/zip.ts           dependency-free stored ZIP writer
 src/core/session.ts       IndexedDB document persistence
 src/core/platform.ts      browser download / Android share bridge
+src/components/CropCanvas.tsx    8-handle crop, whole-quad drag, touch magnifier
+src/components/LiveScanBadge.tsx real-time warped+filtered preview while cropping
+src/components/FilterStrip.tsx   per-filter live thumbnails of the current page
+src/components/PreviewOverlay.tsx full-screen zoom/pan/compare preview
+src/components/CameraSheet.tsx   in-app camera with live edge detection
 src/app.tsx               responsive editor and multi-page workflow
 android/                  Capacitor Android shell
 windows/                  .NET 8 WPF + WebView2 shell
@@ -28,7 +33,9 @@ windows/                  .NET 8 WPF + WebView2 shell
    receipt, invoice, ID, certificate, stamp, blueprint, screen, grayscale,
    and black and white modes. Each preset keeps its own strength value.
 6. Apply brightness, contrast, sharpening, threshold, rotation, and flips.
-7. Encode the page as JPEG, combine pages into a long/grid image, package JPEG
+7. Draw optional export decorations: a diagonal watermark string and footer
+   page numbers.
+8. Encode the page as JPEG, combine pages into a long/grid image, package JPEG
    pages as ZIP, or write a PDF.
 
 Before step 1, the optional source composition studio can arrange multiple raw

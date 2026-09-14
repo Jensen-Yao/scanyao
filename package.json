@@ -1,7 +1,7 @@
 {
   "name": "scanyao",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Small, local-first document scanner for Windows and Android.",
   "type": "module",
   "scripts": {
@@ -27,9 +27,9 @@
     "@capacitor/cli": "^7.6.8",
     "@preact/preset-vite": "^2.10.6",
     "@types/node": "^24.13.3",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

@@ -56,6 +56,10 @@ export function ExportSheet({
             <label class="select-field" for="pdf-size"><span>PDF 纸张</span><select id="pdf-size" value={options.pageSize} onChange={(event) => onOptionsChange({ pageSize: (event.currentTarget as HTMLSelectElement).value as PdfPageSize })}><option value="auto">贴合内容</option><option value="a4">A4</option><option value="letter">Letter</option></select></label>
             <label class="toggle-field"><span><strong>留白边距</strong><small>适合打印与装订</small></span><input type="checkbox" checked={options.margin} onChange={(event) => onOptionsChange({ margin: (event.currentTarget as HTMLInputElement).checked })} /></label>
           </div>
+          <div class="field-grid">
+            <label class="select-field" for="watermark-text"><span>水印文字</span><input id="watermark-text" class="text-field" type="text" placeholder="留空则不添加水印" value={options.watermarkText} onInput={(event) => onOptionsChange({ watermarkText: (event.currentTarget as HTMLInputElement).value })} /></label>
+            <label class="toggle-field"><span><strong>页脚页码</strong><small>在每页底部标注页码</small></span><input type="checkbox" checked={options.pageNumbers} onChange={(event) => onOptionsChange({ pageNumbers: (event.currentTarget as HTMLInputElement).checked })} /></label>
+          </div>
           <label class="select-field merge-field" for="merge-layout"><span>图片合并布局</span><select id="merge-layout" value={options.mergeLayout} onChange={(event) => onOptionsChange({ mergeLayout: (event.currentTarget as HTMLSelectElement).value as MergeLayout })}><option value="vertical">纵向长图</option><option value="horizontal">横向拼接</option><option value="grid">双列拼图</option></select></label>
         </div>
         <div class="export-actions">

@@ -1,7 +1,12 @@
 import type { ScanPage } from '../types'
+import { DEFAULT_FILTER_STRENGTHS, type FilterId } from './imageEngine'
 
 export function fileStem(name: string) {
   return name.replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|]/g, '-').trim() || 'scan'
+}
+
+export function filterStrengthFor(page: Pick<ScanPage, 'filter' | 'filterStrengths'>, filter: FilterId = page.filter) {
+  return page.filterStrengths?.[filter] ?? DEFAULT_FILTER_STRENGTHS[filter]
 }
 
 export function movePage(pages: ScanPage[], pageId: string, offset: -1 | 1) {

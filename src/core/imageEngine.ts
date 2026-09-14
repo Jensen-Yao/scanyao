@@ -54,6 +54,51 @@ export interface ScanResult {
   height: number
 }
 
+export interface ScanDecorations {
+  watermarkText?: string
+  pageNumber?: { index: number; total: number }
+}
+
+function drawDecorations(canvas: HTMLCanvasElement, decorations: ScanDecorations | undefined) {
+  if (!decorations) return
+  const context = canvas.getContext('2d')
+  if (!context) return
+  const { width, height } = canvas
+  const base = Math.min(width, height)
+  const watermark = decorations.watermarkText?.trim()
+  if (watermark) {
+    const fontSize = Math.max(18, Math.round(base / 9))
+    context.save()
+    context.translate(width / 2, height / 2)
+    context.rotate((-26 * Math.PI) / 180)
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+    context.fillStyle = 'rgba(128, 128, 128, 0.17)'
+    const maxWidth = Math.hypot(width, height) * 0.72
+    context.font = `600 ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`
+    const measured = context.measureText(watermark).width
+    if (measured > maxWidth) {
+      context.font = `600 ${Math.max(12, Math.round(fontSize * (maxWidth / measured)))}px "PingFang SC", "Microsoft YaHei", sans-serif`
+    }
+    context.fillText(watermark, 0, 0)
+    context.restore()
+  }
+  if (decorations.pageNumber) {
+    const fontSize = Math.max(11, Math.round(base / 40))
+    context.save()
+    context.font = `500 ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`
+    context.textAlign = 'center'
+    context.textBaseline = 'alphabetic'
+    context.fillStyle = 'rgba(80, 80, 80, 0.8)'
+    context.fillText(
+      `${decorations.pageNumber.index} / ${decorations.pageNumber.total}`,
+      width / 2,
+      height - Math.max(10, Math.round(base * 0.035)),
+    )
+    context.restore()
+  }
+}
+
 const imageCache = new Map<string, Promise<HTMLImageElement>>()
 
 export function loadImage(url: string) {
@@ -450,6 +495,7 @@ export async function renderScan(
   adjustments: ScanAdjustments = DEFAULT_ADJUSTMENTS,
   flipX = false,
   flipY = false,
+  decorations?: ScanDecorations,
 ): Promise<ScanResult> {
   const image = await loadImage(imageUrl)
   const sourceScale = Math.min(1, 3600 / Math.max(image.naturalWidth, image.naturalHeight))
@@ -489,6 +535,7 @@ export async function renderScan(
   processPixels(pixels, outputSize.width, outputSize.height, filter, strength, adjustments)
   outputContext.putImageData(outputData, 0, 0)
   const finalCanvas = transformCanvas(outputCanvas, rotation, flipX, flipY)
+  drawDecorations(finalCanvas, decorations)
   const blob = await canvasToBlob(finalCanvas, quality)
   return {
     blob,

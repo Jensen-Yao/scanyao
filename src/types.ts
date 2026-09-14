@@ -31,4 +31,6 @@ export interface ExportOptions {
   pageSize: PdfPageSize
   margin: boolean
   mergeLayout: MergeLayout
+  watermarkText: string
+  pageNumbers: boolean
 }

@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpToLine, Columns3, Combine, Grid2X2, Images, Maximize2, Move, Plus, Rows3, Trash2, X, ZoomIn, ZoomOut } from 'lucide-preact'
+import { ArrowDownToLine, ArrowUpToLine, Columns3, Combine, CreditCard, Grid2X2, Images, Maximize2, Move, Plus, Rows3, Trash2, X, ZoomIn, ZoomOut } from 'lucide-preact'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import {
   calculateCompositionLayout,
@@ -40,7 +40,7 @@ interface SourceMergeSheetProps {
   onConfirm: (result: MergeStudioResult) => void
 }
 
-type MergeTemplate = CompositionMode | 'collage'
+type MergeTemplate = CompositionMode | 'collage' | 'id-card'
 
 const MIN_STAGE_ZOOM = 1
 const MAX_STAGE_ZOOM = 2.5
@@ -50,6 +50,7 @@ const TEMPLATES: { id: MergeTemplate; label: string; icon: typeof Rows3 }[] = [
   { id: 'vertical', label: '纵向长图', icon: Rows3 },
   { id: 'horizontal', label: '横向拼接', icon: Columns3 },
   { id: 'grid', label: '双列网格', icon: Grid2X2 },
+  { id: 'id-card', label: '证件正反', icon: CreditCard },
   { id: 'collage', label: '自由画布', icon: Move },
 ]
 
@@ -70,7 +71,7 @@ function fitInside(
 
 function templateLayout(sources: MergeStudioSource[], template: MergeTemplate) {
   if (sources.length === 0) return { aspectRatio: 1, placements: [] as NormalizedCompositionPlacement[] }
-  if (template !== 'collage') {
+  if (template !== 'collage' && template !== 'id-card') {
     const layout = calculateCompositionLayout(sources, template, 28, 6000)
     return {
       aspectRatio: layout.width / layout.height,
@@ -81,6 +82,22 @@ function templateLayout(sources: MergeStudioSource[], template: MergeTemplate) {
         height: placement.height / layout.height,
       })),
     }
+  }
+
+  if (template === 'id-card') {
+    // 证件正反拼版：A4 竖版，上下两格留边，适合打印或存档
+    const aspectRatio = 210 / 297
+    const outer = 0.075
+    const gap = 0.03
+    const slotSources = sources.slice(0, 2)
+    const slotHeight = (1 - outer * 2 - gap) / Math.max(1, slotSources.length)
+    const placements = slotSources.map((source, index) => fitInside(source, {
+      x: outer,
+      y: outer + index * (slotHeight + gap),
+      width: 1 - outer * 2,
+      height: slotHeight,
+    }, aspectRatio))
+    return { aspectRatio, placements }
   }
 
   const aspectRatio = sources.length <= 2 ? 4 / 3 : 1

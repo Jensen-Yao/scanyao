@@ -81,3 +81,57 @@ export function clampCorners(corners: CornerSet): CornerSet {
     y: Math.min(1, Math.max(0, point.y)),
   })) as CornerSet
 }
+
+function pointInTriangle(point: Point, a: Point, b: Point, c: Point) {
+  const sign = (p1: Point, p2: Point, p3: Point) => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y)
+  const first = sign(point, a, b)
+  const second = sign(point, b, c)
+  const third = sign(point, c, a)
+  const hasNegative = first < 0 || second < 0 || third < 0
+  const hasPositive = first > 0 || second > 0 || third > 0
+  return !(hasNegative && hasPositive)
+}
+
+export function pointInQuad(corners: CornerSet, point: Point) {
+  return pointInTriangle(point, corners[0], corners[1], corners[2])
+    || pointInTriangle(point, corners[0], corners[2], corners[3])
+}
+
+export function translateQuad(corners: CornerSet, deltaX: number, deltaY: number): CornerSet {
+  const minX = Math.min(...corners.map((point) => point.x))
+  const maxX = Math.max(...corners.map((point) => point.x))
+  const minY = Math.min(...corners.map((point) => point.y))
+  const maxY = Math.max(...corners.map((point) => point.y))
+  const clampedX = Math.max(-minX, Math.min(1 - maxX, deltaX))
+  const clampedY = Math.max(-minY, Math.min(1 - maxY, deltaY))
+  if (clampedX === 0 && clampedY === 0) return corners
+  return corners.map((point) => ({ x: point.x + clampedX, y: point.y + clampedY })) as CornerSet
+}
+
+export function dragQuadEdge(corners: CornerSet, edgeIndex: number, target: Point): CornerSet {
+  const start = corners[edgeIndex]
+  const end = corners[(edgeIndex + 1) % corners.length]
+  const deltaX = target.x - (start.x + end.x) / 2
+  const deltaY = target.y - (start.y + end.y) / 2
+  return corners.map((point, index) => {
+    if (index !== edgeIndex && index !== (edgeIndex + 1) % corners.length) return point
+    return { x: point.x + deltaX, y: point.y + deltaY }
+  }) as CornerSet
+}
+
+export function quadEdgeMidpoint(corners: CornerSet, edgeIndex: number): Point {
+  const start = corners[edgeIndex]
+  const end = corners[(edgeIndex + 1) % corners.length]
+  return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
+}
+
+export function quadBoundingBox(corners: CornerSet) {
+  const xs = corners.map((point) => point.x)
+  const ys = corners.map((point) => point.y)
+  return {
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minY: Math.min(...ys),
+    maxY: Math.max(...ys),
+  }
+}

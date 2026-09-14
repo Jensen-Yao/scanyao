@@ -39,6 +39,15 @@ public partial class MainWindow : Window
             Browser.CoreWebView2.Settings.IsStatusBarEnabled = false;
             Browser.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             Browser.CoreWebView2.Settings.IsZoomControlEnabled = true;
+            Browser.CoreWebView2.PermissionRequested += (_, args) =>
+            {
+                // 应用内相机取景依赖摄像头；仅放行摄像头，其余权限维持默认询问
+                if (args.PermissionKind == CoreWebView2PermissionKind.Camera)
+                {
+                    args.State = CoreWebView2PermissionState.Allow;
+                    args.Handled = true;
+                }
+            };
             Browser.CoreWebView2.NewWindowRequested += (_, args) =>
             {
                 args.Handled = true;

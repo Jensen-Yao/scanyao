@@ -3,6 +3,20 @@
 ScanYao stays local-first and small. Large capabilities should be optional
 rather than silently increasing every installation.
 
+## v0.3.0
+
+- In-app camera with live document-edge detection, multi-shot capture,
+  optional stability auto-capture, and torch support
+- Live scan preview badge while cropping: the perspective-corrected, filtered
+  result renders while you drag the selection
+- Full-screen preview with zoom, pan, page navigation, and press-to-compare
+  against the original photo
+- Crop interaction upgrade: corner and edge-midpoint handles, whole-quad
+  dragging, magnifier on touch, and a rule-of-thirds grid
+- Filter strip now renders real per-filter thumbnails of the current page
+- ID card front/back composition template (A4 portrait)
+- Optional diagonal watermark text and footer page numbers on export
+
 ## v0.2.2
 
 - Fixed Windows WPF icon resource packaging so the desktop app starts reliably
@@ -25,9 +39,8 @@ rather than silently increasing every installation.
 ## Next
 
 - Optional offline OCR language pack instead of bundling a large engine
-- Camera stability detection and opt-in automatic capture
 - Book spread splitting and page-curvature correction
-- Annotation, signature, redaction, and page-number tools
+- Annotation, signature, and redaction tools
 - Optional PDF compression, password protection, and searchable text layer
 - Signed Windows installer and Android release build through GitHub Actions
 
