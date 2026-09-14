@@ -10,6 +10,7 @@ interface CropCanvasProps {
   pan?: Point
   onChange: (corners: CornerSet) => void
   onPan?: (deltaX: number, deltaY: number) => void
+  onViewportChange?: (zoom: number, pan: Point) => void
   onEditStart?: () => void
   onEditEnd?: () => void
 }
@@ -29,15 +30,24 @@ const CORNER_GRAB_RADIUS = 34
 const EDGE_GRAB_RADIUS = 30
 const LOUPE_RADIUS = 52
 const LOUPE_ZOOM = 2.6
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 4
 
 function distance(a: Point, b: Point) {
   return Math.hypot(a.x - b.x, a.y - b.y)
 }
 
-export function CropCanvas({ imageUrl, corners, zoom = 1, pan, onChange, onPan, onEditStart, onEditEnd }: CropCanvasProps) {
+function clampPan(value: number, limit: number) {
+  return Math.max(-limit, Math.min(limit, value))
+}
+
+export function CropCanvas({ imageUrl, corners, zoom = 1, pan, onChange, onPan, onViewportChange, onEditStart, onEditEnd }: CropCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const activeTarget = useRef<DragTarget | null>(null)
+  const activePointerId = useRef<number | null>(null)
+  const activePointers = useRef(new Map<number, Point>())
+  const pinchState = useRef<{ dist: number; mid: Point } | null>(null)
   const lastPointer = useRef<Point | null>(null)
   const loupeAnchor = useRef<Point | null>(null)
   const layoutRef = useRef<Layout | null>(null)
@@ -46,6 +56,16 @@ export function CropCanvas({ imageUrl, corners, zoom = 1, pan, onChange, onPan, 
   cornersRef.current = corners
   const panRef = useRef(pan ?? { x: 0, y: 0 })
   panRef.current = pan ?? { x: 0, y: 0 }
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
+
+  const pinchSnapshot = () => {
+    const points = [...activePointers.current.values()].slice(0, 2)
+    return {
+      dist: distance(points[0], points[1]),
+      mid: { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 },
+    }
+  }
 
   useEffect(() => {
     let disposed = false
@@ -263,12 +283,39 @@ export function CropCanvas({ imageUrl, corners, zoom = 1, pan, onChange, onPan, 
     if (!canvasRef.current) return
     const rect = canvasRef.current.getBoundingClientRect()
     const screenPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+    activePointers.current.set(event.pointerId, screenPoint)
+
+    // 第二根手指落下且当前不是精细拖拽时，进入双指捏合缩放
+    if (activePointers.current.size === 2 && onViewportChange) {
+      const target = hitTest(screenPoint)
+      if (!activeTarget.current || activeTarget.current.kind === 'pan') {
+        activeTarget.current = null
+        lastPointer.current = null
+        canvasRef.current.classList.remove('panning')
+        if (loupeAnchor.current) {
+          loupeAnchor.current = null
+          repaintRef.current()
+        }
+        pinchState.current = pinchSnapshot()
+        return
+      }
+      void target
+      return
+    }
+    if (activePointers.current.size > 2) return
+    if (activeTarget.current) return
+
     const target = hitTest(screenPoint)
     if (!target && !onPan) return
     activeTarget.current = target ?? { kind: 'pan' }
+    activePointerId.current = event.pointerId
     lastPointer.current = screenPoint
     loupeAnchor.current = (target === null || target.kind === 'move' || target.kind === 'pan' || event.pointerType === 'mouse') ? null : screenPoint
-    canvasRef.current.setPointerCapture(event.pointerId)
+    try {
+      canvasRef.current.setPointerCapture(event.pointerId)
+    } catch {
+      // 合成指针事件无法捕获时忽略
+    }
     if (activeTarget.current.kind === 'pan') {
       canvasRef.current.classList.add('panning')
       return
@@ -278,11 +325,35 @@ export function CropCanvas({ imageUrl, corners, zoom = 1, pan, onChange, onPan, 
   }
 
   const onPointerMove = (event: PointerEvent) => {
-    const target = activeTarget.current
-    if (!target) return
     const rect = canvasRef.current?.getBoundingClientRect()
     const screenPoint = rect ? { x: event.clientX - rect.left, y: event.clientY - rect.top } : null
     if (!screenPoint) return
+    if (activePointers.current.has(event.pointerId)) activePointers.current.set(event.pointerId, screenPoint)
+
+    // 双指捏合：以中点为锚点增量缩放，并跟随中点平移
+    if (pinchState.current && activePointers.current.size >= 2 && onViewportChange) {
+      const points = [...activePointers.current.values()].slice(0, 2)
+      if (points.length < 2) return
+      const dist = distance(points[0], points[1])
+      const mid = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 }
+      const layout = layoutRef.current
+      if (layout && pinchState.current.dist > 0) {
+        const factor = Math.min(1.6, Math.max(1 / 1.6, dist / pinchState.current.dist))
+        const nextZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoomRef.current * factor))
+        const applied = nextZoom / zoomRef.current
+        const relX = mid.x - layout.width / 2
+        const relY = mid.y - layout.height / 2
+        onViewportChange(nextZoom, {
+          x: clampPan(relX - (relX - panRef.current.x) * applied + (mid.x - pinchState.current.mid.x), layout.width),
+          y: clampPan(relY - (relY - panRef.current.y) * applied + (mid.y - pinchState.current.mid.y), layout.height),
+        })
+      }
+      pinchState.current = { dist, mid }
+      return
+    }
+
+    const target = activeTarget.current
+    if (!target || activePointerId.current !== event.pointerId) return
     if (target.kind === 'pan') {
       const previous = lastPointer.current
       if (previous && onPan) onPan(screenPoint.x - previous.x, screenPoint.y - previous.y)
@@ -312,6 +383,10 @@ export function CropCanvas({ imageUrl, corners, zoom = 1, pan, onChange, onPan, 
   }
 
   const onPointerUp = (event: PointerEvent) => {
+    activePointers.current.delete(event.pointerId)
+    if (activePointers.current.size < 2) pinchState.current = null
+    if (activePointerId.current !== event.pointerId) return
+    activePointerId.current = null
     const wasEditing = activeTarget.current !== null
     const wasPanning = activeTarget.current?.kind === 'pan'
     activeTarget.current = null
@@ -321,7 +396,11 @@ export function CropCanvas({ imageUrl, corners, zoom = 1, pan, onChange, onPan, 
       loupeAnchor.current = null
       repaintRef.current()
     }
-    if (canvasRef.current?.hasPointerCapture(event.pointerId)) canvasRef.current.releasePointerCapture(event.pointerId)
+    try {
+      if (canvasRef.current?.hasPointerCapture(event.pointerId)) canvasRef.current.releasePointerCapture(event.pointerId)
+    } catch {
+      // 指针已释放时忽略
+    }
     if (wasEditing && !wasPanning) onEditEnd?.()
   }
 

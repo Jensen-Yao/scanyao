@@ -3,6 +3,12 @@
 ScanYao stays local-first and small. Large capabilities should be optional
 rather than silently increasing every installation.
 
+## v0.3.2
+
+- Mobile canvas gestures: two-finger pinch zoom anchored on the pinch midpoint
+  in both editor modes, plus one-finger pan on the enhance preview
+- Zoom controls now shown on phones as well; zoom persists across sessions
+
 ## v0.3.1
 
 - Desktop canvas zooming: wheel or -/percent/+/fit controls (25–400%, remembered),

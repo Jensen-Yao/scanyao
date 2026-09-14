@@ -117,6 +117,8 @@ export function App() {
   const [stageZoom, setStageZoom] = useState(initialStageZoom)
   const [stagePan, setStagePan] = useState({ x: 0, y: 0 })
   const previewPanDrag = useRef<{ startX: number; startY: number; baseX: number; baseY: number; moved: boolean } | null>(null)
+  const previewPointers = useRef(new Map<number, { x: number; y: number }>())
+  const previewPinch = useRef<{ dist: number; midX: number; midY: number } | null>(null)
   const suppressPreviewClick = useRef(false)
   const [exportOptions, setExportOptions] = useState<ExportOptions>(loadExportOptions)
   const [saveState, setSaveState] = useState<SaveState>('loading')
@@ -485,10 +487,56 @@ export function App() {
     setStageZoom(next)
   }
   const onPreviewPanDown = (event: PointerEvent) => {
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+    const target = event.currentTarget as HTMLElement
+    const bounds = target.getBoundingClientRect()
+    const point = { x: event.clientX - bounds.left, y: event.clientY - bounds.top }
+    previewPointers.current.set(event.pointerId, point)
+    try {
+      target.setPointerCapture(event.pointerId)
+    } catch {
+      // 合成指针事件无法捕获时忽略
+    }
+    if (previewPointers.current.size === 2) {
+      const [a, b] = [...previewPointers.current.values()]
+      previewPinch.current = {
+        dist: Math.hypot(a.x - b.x, a.y - b.y),
+        midX: (a.x + b.x) / 2,
+        midY: (a.y + b.y) / 2,
+      }
+      previewPanDrag.current = null
+      return
+    }
+    if (previewPointers.current.size > 2) return
     previewPanDrag.current = { startX: event.clientX, startY: event.clientY, baseX: stagePan.x, baseY: stagePan.y, moved: false }
   }
   const onPreviewPanMove = (event: PointerEvent) => {
+    const target = event.currentTarget as HTMLElement
+    const bounds = target.getBoundingClientRect()
+    const point = { x: event.clientX - bounds.left, y: event.clientY - bounds.top }
+    if (previewPointers.current.has(event.pointerId)) previewPointers.current.set(event.pointerId, point)
+
+    // 双指捏合：以中点为锚点增量缩放，并跟随中点平移
+    if (previewPinch.current && previewPointers.current.size >= 2) {
+      const [a, b] = [...previewPointers.current.values()]
+      const dist = Math.hypot(a.x - b.x, a.y - b.y)
+      const midX = (a.x + b.x) / 2
+      const midY = (a.y + b.y) / 2
+      if (previewPinch.current.dist > 0) {
+        const factor = Math.min(1.6, Math.max(1 / 1.6, dist / previewPinch.current.dist))
+        const nextZoom = clampStageZoom(stageZoom * factor)
+        const applied = nextZoom / stageZoom
+        const relX = midX - bounds.width / 2
+        const relY = midY - bounds.height / 2
+        setStageZoom(nextZoom)
+        setStagePan({
+          x: Math.max(-bounds.width, Math.min(bounds.width, relX - (relX - stagePan.x) * applied + (midX - previewPinch.current.midX))),
+          y: Math.max(-bounds.height, Math.min(bounds.height, relY - (relY - stagePan.y) * applied + (midY - previewPinch.current.midY))),
+        })
+      }
+      previewPinch.current = { dist, midX, midY }
+      return
+    }
+
     const drag = previewPanDrag.current
     if (!drag) return
     const deltaX = event.clientX - drag.startX
@@ -498,7 +546,18 @@ export function App() {
   }
   const onPreviewPanUp = (event: PointerEvent) => {
     const target = event.currentTarget as HTMLElement
-    if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
+    previewPointers.current.delete(event.pointerId)
+    const wasPinching = previewPinch.current !== null
+    if (previewPointers.current.size < 2) previewPinch.current = null
+    if (wasPinching) {
+      previewPanDrag.current = null
+      return
+    }
+    try {
+      if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
+    } catch {
+      // 指针已释放时忽略
+    }
     suppressPreviewClick.current = previewPanDrag.current?.moved ?? false
     previewPanDrag.current = null
   }
@@ -761,7 +820,7 @@ export function App() {
         <div class="sidebar-spacer" />
         <div class="local-note"><span class="status-dot" />本地处理<br /><small>{saveLabel}</small></div>
         <button class="theme-toggle" type="button" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label="切换深浅色主题" title="切换深浅色主题">{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}<span>{theme === 'light' ? '深色外观' : '浅色外观'}</span></button>
-        <div class="sidebar-footer">v0.3.1 · 本地优先</div>
+        <div class="sidebar-footer">v0.3.2 · 本地优先</div>
       </aside>
 
       <main class="main-content">
@@ -806,21 +865,23 @@ export function App() {
                         pan={stagePan}
                         onChange={(corners) => updateActive({ corners }, false)}
                         onPan={(deltaX, deltaY) => setStagePan((current) => ({ x: current.x + deltaX, y: current.y + deltaY }))}
+                        onViewportChange={(zoomValue, panValue) => { setStageZoom(clampStageZoom(zoomValue)); setStagePan(panValue) }}
                         onEditStart={beginTransaction}
                         onEditEnd={endTransaction}
                       />
                       <LiveScanBadge page={activePage} onOpen={() => setPreviewOpen(true)} />
                     </>
                   ) : preview ? (
-                    <div class="preview-zoom-wrap">
+                    <div class="preview-zoom-wrap"
+                      onPointerDown={onPreviewPanDown}
+                      onPointerMove={onPreviewPanMove}
+                      onPointerUp={onPreviewPanUp}
+                      onPointerCancel={onPreviewPanUp}
+                      onClickCapture={onPreviewClickCapture}
+                    >
                       <div
                         class="preview-zoom-inner"
                         style={`transform: translate(${stagePan.x}px, ${stagePan.y}px) scale(${stageZoom})`}
-                        onPointerDown={onPreviewPanDown}
-                        onPointerMove={onPreviewPanMove}
-                        onPointerUp={onPreviewPanUp}
-                        onPointerCancel={onPreviewPanUp}
-                        onClickCapture={onPreviewClickCapture}
                       >
                         <button type="button" class="processed-preview-button" onClick={() => setPreviewOpen(true)} aria-label="点击全屏查看扫描结果" title="点击全屏查看">
                           <img class="processed-preview" src={preview.url} alt="扫描预览" draggable={false} />

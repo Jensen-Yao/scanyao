@@ -108,7 +108,7 @@ body { background: var(--bg-app); color: var(--text); }
 .processed-preview { display: block; max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 10px 28px rgba(0,0,0,.32); }
 .processing-state { display: inline-flex; align-items: center; gap: 8px; color: rgba(255,255,255,.68); font-size: 13px; }
 /* 画布缩放 */
-.preview-zoom-wrap { display: grid; width: 100%; height: 100%; min-height: 0; place-items: center; overflow: hidden; }
+.preview-zoom-wrap { display: grid; width: 100%; height: 100%; min-height: 0; place-items: center; overflow: hidden; touch-action: none; }
 .preview-zoom-inner { display: grid; place-items: center; max-width: 100%; max-height: 100%; will-change: transform; }
 .stage-zoom-controls { position: absolute; bottom: 12px; left: 50%; z-index: 6; display: flex; align-items: center; gap: 1px; padding: 2px; background: color-mix(in srgb, var(--bg-surface-strong) 92%, transparent); border: 1px solid var(--border-strong); border-radius: 8px; backdrop-filter: blur(14px); transform: translateX(-50%); }
 .stage-zoom-controls button { display: grid; width: 28px; height: 26px; padding: 0; place-items: center; color: var(--text-soft); background: transparent; border-radius: 6px; }
@@ -415,7 +415,8 @@ body { background: var(--bg-app); color: var(--text); }
   .canvas-toolbar-actions .danger-icon { display: none; }
   .canvas-meta { display: none; }
   .canvas-stage { min-height: 0; padding: 8px; }
-  .stage-zoom-controls { display: none; }
+  .stage-zoom-controls { bottom: 8px; padding: 2px; transform: translateX(-50%) scale(.92); transform-origin: bottom center; }
+  .live-scan-badge { bottom: 46px; }
   .crop-canvas-wrap { min-height: 0; }
   .canvas-footer { flex-basis: 27px; padding-inline: 9px; }
   .canvas-footer span:first-child { max-width: 65%; }
@@ -425,7 +426,7 @@ body { background: var(--bg-app); color: var(--text); }
   .filter-strip { grid-auto-columns: 66px; margin-inline: -1px; }
   .filter-option { min-height: 72px; }
   .filter-thumb { height: 42px; }
-  .live-scan-badge { right: 10px; bottom: 10px; border-radius: 9px; }
+  .live-scan-badge { right: 10px; border-radius: 9px; }
   .live-scan-thumb { width: 86px; height: 60px; }
   .preview-nav { width: 36px; height: 36px; }
   .preview-nav.left { left: 8px; }
